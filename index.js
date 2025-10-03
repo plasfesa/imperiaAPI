@@ -16,8 +16,7 @@ const app = express();
 app.use(express.json());
 
 // Middleware para validar api_key
-app.use((req, res, next) => {
-  console.log("Validando API Key");
+app.use((req, res, next) => {  
   const apiKey = req.query.api_key || req.headers['x-api-key']; 
   if (!apiKey || apiKey !== process.env.API_KEY) {
     return res.status(401).json({ error: "No autorizado: API Key inválida" });
