@@ -48,6 +48,7 @@ app.get("/mClientes", async (req, res) => {
     console.log("Accediendo a mClientes");
     const pool = await poolPromise;
     const result = await pool.request().query("SELECT * FROM vpers_imperia_mclientes");
+    console.log("Datos de mClientes:", result.recordset);
     res.json(result.recordset);
   } catch (err) {
     res.status(500).send("Error en la consulta: " + err.message);
