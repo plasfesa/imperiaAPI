@@ -1,8 +1,29 @@
-const express = require("express");
+const express = require('express');
+const axios = require('axios');
+const soap = require('soap');
+var https = require('https');
+var http = require('http');
+var fs = require('fs');
+const { Console } = require('console');
+const cluster = require('cluster');
+const path = require('path');
+const geoip = require('geoip-lite');
+require('dotenv').config();  // Importante para leer el .env
+
 const { poolPromise } = require("./db");
 
 const app = express();
 app.use(express.json());
+
+// Middleware para validar api_key
+app.use((req, res, next) => {
+  console.log("Validando API Key");
+  const apiKey = req.query.api_key || req.headers['x-api-key']; 
+  if (!apiKey || apiKey !== process.env.API_KEY) {
+    return res.status(401).json({ error: "No autorizado: API Key inválida" });
+  }
+  next();
+});
 
 // Ruta principal
 app.get("/", (req, res) => {
@@ -12,6 +33,7 @@ app.get("/", (req, res) => {
 // 01 - mprod
 app.get("/mProd", async (req, res) => {
   try {
+    console.log("Accediendo a mProd");
     const pool = await poolPromise;
     const result = await pool.request().query("SELECT * FROM vpers_imperia_mprod");
     res.json(result.recordset);
@@ -23,6 +45,7 @@ app.get("/mProd", async (req, res) => {
 // 02 - mclientes
 app.get("/mClientes", async (req, res) => {
   try {
+    console.log("Accediendo a mClientes");
     const pool = await poolPromise;
     const result = await pool.request().query("SELECT * FROM vpers_imperia_mclientes");
     res.json(result.recordset);
@@ -34,6 +57,7 @@ app.get("/mClientes", async (req, res) => {
 // 03 - mUbicacionesVenta
 app.get("/mUbicacionesVenta", async (req, res) => {
   try {
+    console.log("Accediendo a mUbicacionesVenta");
     const pool = await poolPromise;
     const result = await pool.request().query("SELECT * FROM vpers_imperia_mUbicacionesVenta");
     res.json(result.recordset);
@@ -42,10 +66,10 @@ app.get("/mUbicacionesVenta", async (req, res) => {
   }
 });
 
-
 // 04 - histVentas
 app.get("/histVentas", async (req, res) => {
   try {
+    console.log("Accediendo a histVentas");
     const pool = await poolPromise;
     const result = await pool.request().query("SELECT * FROM vpers_imperia_histVentas");
     res.json(result.recordset);
@@ -54,10 +78,10 @@ app.get("/histVentas", async (req, res) => {
   }
 });
 
-
 // 05 - bom
 app.get("/bom", async (req, res) => {
   try {
+    console.log("Accediendo a bom");
     const pool = await poolPromise;
     const result = await pool.request().query("SELECT * FROM vpers_imperia_bom");
     res.json(result.recordset);
@@ -66,7 +90,16 @@ app.get("/bom", async (req, res) => {
   }
 });
 
+//const hostname = 'plasfesa.ddns.net';
+const hostname = process.env.HOSTNAME;
+const httpsPort = process.env.PORT;
+const httpsOptions = {
+  cert: fs.readFileSync('./certi/plasfesa_ddns_net.pem'),
+  key: fs.readFileSync('./certi/private.key')
+};
 
-// Iniciar servidor
-const PORT = process.env.PORT || 9000;
-app.listen(PORT, () => console.log(`🚀 imperiaAPI corriendo en http://localhost:${PORT}`));
+const httpsServer = https.createServer(httpsOptions, app);
+
+httpsServer.listen(httpsPort, hostname, () => {
+  console.log(`Servidor HTTPS corriendo en https://${hostname}:${httpsPort}`);
+});
