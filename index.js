@@ -32,8 +32,7 @@ app.get("/", (req, res) => {
 
 // 01 - mprod
 app.get("/mProd", async (req, res) => {
-  try {
-    console.log("Accediendo a mProd");
+  try {    
     const pool = await poolPromise;
     const result = await pool.request().query("SELECT * FROM vpers_imperia_mprod");
     res.json(result.recordset);
@@ -45,10 +44,8 @@ app.get("/mProd", async (req, res) => {
 // 02 - mclientes
 app.get("/mClientes", async (req, res) => {
   try {
-    console.log("Accediendo a mClientes");
     const pool = await poolPromise;
     const result = await pool.request().query("SELECT * FROM vpers_imperia_mclientes");
-    console.log("Datos de mClientes:", result.recordset);
     res.json(result.recordset);
   } catch (err) {
     res.status(500).send("Error en la consulta: " + err.message);
@@ -58,7 +55,6 @@ app.get("/mClientes", async (req, res) => {
 // 03 - mUbicacionesVenta
 app.get("/mUbicacionesVenta", async (req, res) => {
   try {
-    console.log("Accediendo a mUbicacionesVenta");
     const pool = await poolPromise;
     const result = await pool.request().query("SELECT * FROM vpers_imperia_mUbicacionesVenta");
     res.json(result.recordset);
@@ -70,7 +66,6 @@ app.get("/mUbicacionesVenta", async (req, res) => {
 // 04 - histVentas
 app.get("/histVentas", async (req, res) => {
   try {
-    console.log("Accediendo a histVentas");
     const pool = await poolPromise;
     const result = await pool.request().query("SELECT * FROM vpers_imperia_histVentas");
     res.json(result.recordset);
@@ -82,7 +77,6 @@ app.get("/histVentas", async (req, res) => {
 // 05 - bom
 app.get("/bom", async (req, res) => {
   try {
-    console.log("Accediendo a bom");
     const pool = await poolPromise;
     const result = await pool.request().query("SELECT * FROM vpers_imperia_bom");
     res.json(result.recordset);
