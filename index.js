@@ -132,7 +132,7 @@ app.post("/addForecast", async (req, res) => {
 
       const request = pool.request();
       request.input("itemCode", sql.VarChar, itemCode);
-      request.input("cliente", sql.Int, cliente);
+      request.input("cliente", sql.VarChar, cliente);
       request.input("quantity", sql.Float, quantity);
       request.input("dayCode", sql.Int, dayCode);
 
