@@ -8,6 +8,7 @@ const { Console } = require('console');
 const cluster = require('cluster');
 const path = require('path');
 const geoip = require('geoip-lite');
+const sql = require("mssql");
 require('dotenv').config();  // Importante para leer el .env
 
 const { poolPromise } = require("./db");
@@ -84,6 +85,128 @@ app.get("/bom", async (req, res) => {
   }
 });
 
+
+
+// POST - addForecast
+app.post("/addForecast", async (req, res) => {
+  // Puede venir un objeto o un array; lo normalizamos a array
+  const forecasts = Array.isArray(req.body) ? req.body : [req.body];
+
+  if (!forecasts || forecasts.length === 0) {
+    return res.status(400).json({
+      error: "Debe enviar al menos una previsión en el cuerpo de la petición",
+    });
+  }
+
+  let transaction;
+
+  try {
+    const pool = await poolPromise;
+    //transaction = new sql.Transaction(pool);
+    //await transaction.begin();
+
+    const requestDelete = pool.request();
+    const queryDelete = `DELETE FROM pers_previsiones_imperia`;
+    await requestDelete.query(queryDelete);
+
+    // Vamos insertando cada previsión
+    for (const f of forecasts) {
+      const { itemCode, cliente, quantity, dayCode } = f;
+
+      // Validación básica
+      if (
+        itemCode === undefined ||
+        cliente === undefined ||
+        quantity === undefined ||
+        dayCode === undefined
+      ) {
+        throw new Error(
+          "Cada previsión debe incluir itemCode, cliente, quantity y dayCode"
+        );
+      }
+
+      const request = pool.request();
+      request.input("itemCode", sql.VarChar, itemCode);
+      request.input("cliente", sql.Int, cliente);
+      request.input("quantity", sql.Float, quantity);
+      request.input("dayCode", sql.Int, dayCode);
+
+      // dayCode tiene formato YYYYDDD, ej: 2026134
+      // year = dayCode / 1000 (entero)
+      // dayOfYear = dayCode % 1000
+      // fecha = DATEADD(day, dayOfYear - 1, DATEFROMPARTS(year, 1, 1))
+      const query = `
+        INSERT INTO pers_previsiones_imperia (idArticulo, idCliente, cantidad, fecha)
+        VALUES (
+          @itemCode,
+          @cliente,
+          @quantity,
+          DATEADD(
+            DAY,
+            (@dayCode % 1000) - 1,
+            DATEFROMPARTS(@dayCode / 1000, 1, 1)
+          )
+        );
+      `;
+
+      await request.query(query);
+    }
+
+   // await transaction.commit();
+
+    res.status(201).json({
+      message: "Previsiones insertadas correctamente",
+      count: forecasts.length,
+    });
+  } catch (err) {
+    if (transaction) {
+      try {
+        await transaction.rollback();
+      } catch (_) {
+        // ignoramos errores de rollback
+      }
+    }
+    res
+      .status(500)
+      .send("Error al insertar previsiones: " + err.message);
+  }
+});
+
+// POST - deleteForecast
+app.post("/deleteForecast", async (req, res) => {
+  let transaction;
+
+  try {
+    const pool = await poolPromise;
+    transaction = new sql.Transaction(pool);
+    await transaction.begin();
+
+    const request = new pool.Request(transaction);
+
+    // Elimina todas las previsiones
+    await request.query(`
+      DELETE FROM pers_previsiones_imperia;
+    `);
+
+    await transaction.commit();
+
+    res.status(200).json({
+      message: "Todas las previsiones han sido eliminadas correctamente"
+    });
+
+  } catch (err) {
+    if (transaction) {
+      try {
+        await transaction.rollback();
+      } catch (_) {}
+    }
+
+    res.status(500).send("Error al eliminar previsiones: " + err.message);
+  }
+});
+
+
+
 //const hostname = 'plasfesa.ddns.net';
 const hostname = process.env.HOSTNAME;
 const httpsPort = process.env.PORT;
@@ -97,3 +220,6 @@ const httpsServer = https.createServer(httpsOptions, app);
 httpsServer.listen(httpsPort, hostname, () => {
   console.log(`Servidor HTTPS corriendo en https://${hostname}:${httpsPort}`);
 });
+
+
+
