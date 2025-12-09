@@ -110,9 +110,9 @@ app.post("/addForecast", async (req, res) => {
     //transaction = new sql.Transaction(pool);
     //await transaction.begin();
 
-    const requestDelete = pool.request();
-    const queryDelete = `DELETE FROM pers_previsiones_imperia`;
-    await requestDelete.query(queryDelete);
+    // const requestDelete = pool.request();
+    // const queryDelete = `DELETE FROM pers_previsiones_imperia`;
+    // await requestDelete.query(queryDelete);
 
     // Vamos insertando cada previsión
     for (const f of forecasts) {
