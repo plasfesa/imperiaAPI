@@ -14,6 +14,11 @@ require('dotenv').config();  // Importante para leer el .env
 const { poolPromise } = require("./db");
 
 const app = express();
+// Aumenta el límite, por ejemplo a 10 MB
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ limit: "10mb", extended: true }));
+
+
 app.use(express.json());
 
 // Middleware para validar api_key
