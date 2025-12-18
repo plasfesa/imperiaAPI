@@ -123,7 +123,8 @@ app.post("/addForecast", async (req, res) => {
         itemCode === undefined ||
         cliente === undefined ||
         quantity === undefined ||
-        dayCode === undefined
+        dayCode === undefined  ||
+        valor === undefined
       ) {
         throw new Error(
           "Cada previsión debe incluir itemCode, cliente, quantity y dayCode"
@@ -135,13 +136,14 @@ app.post("/addForecast", async (req, res) => {
       request.input("cliente", sql.VarChar, cliente);
       request.input("quantity", sql.Float, quantity);
       request.input("dayCode", sql.Int, dayCode);
+      request.input("Valor", sql.Float, valor);
 
       // dayCode tiene formato YYYYDDD, ej: 2026134
       // year = dayCode / 1000 (entero)
       // dayOfYear = dayCode % 1000
       // fecha = DATEADD(day, dayOfYear - 1, DATEFROMPARTS(year, 1, 1))
       const query = `
-        INSERT INTO pers_previsiones_imperia (idArticulo, idCliente, cantidad, fecha)
+        INSERT INTO pers_previsiones_imperia (idArticulo, idCliente, cantidad, fecha, importe)
         VALUES (
           @itemCode,
           @cliente,
@@ -150,7 +152,8 @@ app.post("/addForecast", async (req, res) => {
             DAY,
             (@dayCode % 1000) - 1,
             DATEFROMPARTS(@dayCode / 1000, 1, 1)
-          )
+          ),
+          @valor
         );
       `;
 
@@ -178,22 +181,24 @@ app.post("/addForecast", async (req, res) => {
 });
 
 // POST - deleteForecast
-app.post("/deleteForecast", async (req, res) => {
+app.delete("/deleteForecast", async (req, res) => {
   let transaction;
 
   try {
     const pool = await poolPromise;
-    transaction = new sql.Transaction(pool);
-    await transaction.begin();
+    // transaction = new sql.Transaction(pool);
+    // await transaction.begin();
 
-    const request = new pool.Request(transaction);
+    // const request = new pool.Request(transaction);
 
     // Elimina todas las previsiones
+     const request = pool.request();
+
     await request.query(`
       DELETE FROM pers_previsiones_imperia;
     `);
 
-    await transaction.commit();
+    // await transaction.commit();
 
     res.status(200).json({
       message: "Todas las previsiones han sido eliminadas correctamente"
