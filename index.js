@@ -116,7 +116,8 @@ app.post("/addForecast", async (req, res) => {
 
     // Vamos insertando cada previsión
     for (const f of forecasts) {
-      const { itemCode, cliente, quantity, dayCode, valor } = f;
+      console.log(f);
+      const { itemCode, cliente, quantity, dayCode, Valor } = f;
 
       // Validación básica
       if (
@@ -124,10 +125,10 @@ app.post("/addForecast", async (req, res) => {
         cliente === undefined ||
         quantity === undefined ||
         dayCode === undefined  ||
-        valor === undefined
+        Valor === undefined
       ) {
         throw new Error(
-          "Cada previsión debe incluir itemCode, cliente, quantity y dayCode"
+          "Cada previsión debe incluir itemCode, cliente, quantity, dayCode y Valor"
         );
       }
 
@@ -136,7 +137,7 @@ app.post("/addForecast", async (req, res) => {
       request.input("cliente", sql.VarChar, cliente);
       request.input("quantity", sql.Float, quantity);
       request.input("dayCode", sql.Int, dayCode);
-      request.input("Valor", sql.Float, valor);
+      request.input("Valor", sql.Float, Valor);
 
       // dayCode tiene formato YYYYDDD, ej: 2026134
       // year = dayCode / 1000 (entero)
@@ -153,7 +154,7 @@ app.post("/addForecast", async (req, res) => {
             (@dayCode % 1000) - 1,
             DATEFROMPARTS(@dayCode / 1000, 1, 1)
           ),
-          @valor
+          @Valor
         );
       `;
 
