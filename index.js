@@ -116,7 +116,7 @@ app.post("/addForecast", async (req, res) => {
 
     // Vamos insertando cada previsión
     for (const f of forecasts) {
-      const { itemCode, cliente, quantity, dayCode } = f;
+      const { itemCode, cliente, quantity, dayCode, valor } = f;
 
       // Validación básica
       if (
