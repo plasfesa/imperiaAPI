@@ -195,10 +195,18 @@ app.delete("/deleteForecast", async (req, res) => {
     // Elimina todas las previsiones
      const request = pool.request();
 
+    // await request.query(`
+    //   DELETE FROM pers_previsiones_imperia;
+    // `);
+
     await request.query(`
-      DELETE FROM pers_previsiones_imperia;
+      update pers_previsiones_imperia
+      set insertUpdate = 1
+      , fechaInsertUpdate = GETDATE()
+      where insertUpdate = 0;
     `);
 
+    
     // await transaction.commit();
 
     res.status(200).json({
