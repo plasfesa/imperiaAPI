@@ -216,6 +216,63 @@ app.delete("/delete", async (req, res) => {
   }
 });
 
+// ********************************************************
+// ********************** PRODUCCIÓN **********************
+// ********************************************************
+
+
+// Stock
+app.get("/produccion/stock", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query("SELECT * FROM vpers_imperia_produccion_stock");
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).send("Error en la consulta: " + err.message);
+  }
+});
+
+
+// Configuración de proceso
+app.get("/produccion/configuracionProceso", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query("SELECT * FROM vpers_imperia_produccion_configuracionProceso");
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).send("Error en la consulta: " + err.message);
+  }
+});
+
+// Órdenes de producción
+app.get("/produccion/ordenesProduccion", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query("SELECT * FROM vpers_imperia_produccion_ordenesProduccion");
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).send("Error en la consulta: " + err.message);
+  }
+});
+
+
+// Lineas de producción
+app.get("/produccion/lineasProduccion", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query("SELECT * FROM vpers_imperia_produccion_lineasProduccion");
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).send("Error en la consulta: " + err.message);
+  }
+});
+
+
+
+
+
+
+// ****************[FIN] PRODUCCIÓN **********************
 
 
 //const hostname = 'plasfesa.ddns.net';
