@@ -107,13 +107,6 @@ app.post("/addForecast", async (req, res) => {
 
   try {
     const pool = await poolPromise;
-    //transaction = new sql.Transaction(pool);
-    //await transaction.begin();
-
-    // const requestDelete = pool.request();
-    // const queryDelete = `DELETE FROM pers_previsiones_imperia`;
-    // await requestDelete.query(queryDelete);
-
     // Vamos insertando cada previsión
     for (const f of forecasts) {
       console.log(f);
@@ -139,10 +132,6 @@ app.post("/addForecast", async (req, res) => {
       request.input("dayCode", sql.Int, dayCode);
       request.input("Valor", sql.Float, Valor);
 
-      // dayCode tiene formato YYYYDDD, ej: 2026134
-      // year = dayCode / 1000 (entero)
-      // dayOfYear = dayCode % 1000
-      // fecha = DATEADD(day, dayOfYear - 1, DATEFROMPARTS(year, 1, 1))
       const query = `
         INSERT INTO pers_previsiones_imperia (idArticulo, idCliente, cantidad, fecha, importe)
         VALUES (
@@ -187,19 +176,12 @@ app.delete("/delete", async (req, res) => {
 
   try {
     const pool = await poolPromise;
-    // transaction = new sql.Transaction(pool);
-    // await transaction.begin();
-
-    // const request = new pool.Request(transaction);
-
     // Elimina todas las previsiones
      const request = pool.request();
 
     await request.query(`
       DELETE FROM pers_previsiones_imperia;
     `);
-    
-    // await transaction.commit();
 
     res.status(200).json({
       message: "Todas las previsiones han sido eliminadas correctamente"
@@ -275,7 +257,6 @@ app.get("/produccion/lineasProduccion", async (req, res) => {
 // ****************[FIN] PRODUCCIÓN **********************
 
 
-//const hostname = 'plasfesa.ddns.net';
 const hostname = process.env.HOSTNAME;
 const httpsPort = process.env.PORT;
 const httpsOptions = {
