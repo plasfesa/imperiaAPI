@@ -257,6 +257,16 @@ app.get("/produccion/lineasProduccion", async (req, res) => {
 });
 
 
+// Calenda de Lineas de producción
+app.get("/produccion/calendarioLineasProduccion", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query("SELECT * FROM vpers_imperia_produccion_calendarioLineasProduccion");
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).send("Error en la consulta: " + err.message);
+  }
+});
 
 
 
