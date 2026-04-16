@@ -110,7 +110,7 @@ app.post("/addForecast", async (req, res) => {
     // Vamos insertando cada previsión
     for (const f of forecasts) {
       console.log(f);
-      const { itemCode, cliente, quantity, dayCode, Valor } = f;
+      const { itemCode, cliente, quantity, dayCode, Valor, Concepto } = f;
 
       // Validación básica
       if (
@@ -131,7 +131,7 @@ app.post("/addForecast", async (req, res) => {
       request.input("quantity", sql.Float, quantity);
       request.input("dayCode", sql.Int, dayCode);
       request.input("Valor", sql.Float, Valor);
-      request.input("tipo", sql.VarChar, "Concepto");
+      request.input("Concepto", sql.VarChar, Concepto);
 
       const query = `
         INSERT INTO pers_previsiones_imperia (idArticulo, idCliente, cantidad, fecha, importe, tipo)
@@ -145,7 +145,7 @@ app.post("/addForecast", async (req, res) => {
             DATEFROMPARTS(@dayCode / 1000, 1, 1)
           ),
           @Valor,
-          @tipo
+          @Concepto
         );
       `;
 
