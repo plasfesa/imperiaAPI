@@ -134,9 +134,9 @@ app.post("/addForecast", async (req, res) => {
       request.input("Valor", sql.Float, Valor);
       request.input("concepto", sql.VarChar, concepto);
 
-      console.log("concepto:", concepto);
+      // console.log("concepto:", concepto);
 
-      
+
       const query = `
         INSERT INTO pers_previsiones_imperia (idArticulo, idCliente, cantidad, fecha, importe, tipo)
         VALUES (
@@ -152,6 +152,7 @@ app.post("/addForecast", async (req, res) => {
           @concepto
         );
       `;
+      console.log("Ejecutando query:", query);
 
       await request.query(query);
     }
