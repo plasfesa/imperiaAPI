@@ -109,7 +109,7 @@ app.post("/addForecast", async (req, res) => {
     const pool = await poolPromise;
     // Vamos insertando cada previsión
     for (const f of forecasts) {
-      console.log(f);
+      // console.log(f);
       const { itemCode, cliente, quantity, dayCode, Valor, concepto } = f;
 
       // Validación básica
@@ -132,7 +132,7 @@ app.post("/addForecast", async (req, res) => {
       request.input("quantity", sql.Float, quantity);
       request.input("dayCode", sql.Int, dayCode);
       request.input("Valor", sql.Float, Valor);
-      request.input("concepto", sql.VarChar, concepto);
+      request.input("concepto", sql.VarChar, (concepto === null) ? 'Base' : concepto);
 
       // console.log("concepto:", concepto);
 
@@ -152,7 +152,7 @@ app.post("/addForecast", async (req, res) => {
           @concepto
         );
       `;
-      console.log("Ejecutando query:", query);
+      // console.log("Ejecutando query:", query);
 
       await request.query(query);
     }
