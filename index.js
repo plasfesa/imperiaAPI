@@ -134,7 +134,7 @@ app.post("/addForecast", async (req, res) => {
       request.input("dayCode", sql.Int, dayCode);
       request.input("Valor", sql.Float, Valor);
       request.input("concepto", sql.VarChar, (concepto === null) ? 'Base' : concepto);
-      request.input("FechaFin", sql.Int, FechaFin);
+      request.input("FechaFin", sql.DateTime, FechaFin);
 
       console.log("FechaFin:", FechaFin);
 
@@ -152,13 +152,7 @@ app.post("/addForecast", async (req, res) => {
           ),
           @Valor,
           @concepto,
-          case when @FechaFin = 0 then null else
-          DATEADD(
-            DAY,
-            (@FechaFin % 1000) - 1,
-            DATEFROMPARTS(@FechaFin / 1000, 1, 1)
-          )
-            end
+          @FechaFin
         );
       `;
       
