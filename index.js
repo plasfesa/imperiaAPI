@@ -159,7 +159,7 @@ app.post("/addForecast", async (req, res) => {
           )
         );
       `;
-      // console.log("Ejecutando query:", query);
+      console.log("Ejecutando query:", query);
 
       await request.query(query);
     }
