@@ -110,7 +110,7 @@ app.post("/addForecast", async (req, res) => {
     // Vamos insertando cada previsión
     for (const f of forecasts) {
       // console.log(f);
-      const { itemCode, cliente, quantity, dayCode, Valor, concepto, fechaFinPrevision } = f;
+      const { itemCode, cliente, quantity, dayCode, Valor, concepto, FechaFin } = f;
 
       // Validación básica
       if (
@@ -120,10 +120,10 @@ app.post("/addForecast", async (req, res) => {
         dayCode === undefined  ||
         Valor === undefined ||
         concepto === undefined ||
-        fechaFinPrevision === undefined
+        FechaFin === undefined
       ) {
         throw new Error(
-          "Cada previsión debe incluir itemCode, cliente, quantity, dayCode, Valor, concepto y fechaFinPrevision"
+          "Cada previsión debe incluir itemCode, cliente, quantity, dayCode, Valor, concepto y FechaFin"
         );
       }
 
@@ -134,7 +134,7 @@ app.post("/addForecast", async (req, res) => {
       request.input("dayCode", sql.Int, dayCode);
       request.input("Valor", sql.Float, Valor);
       request.input("concepto", sql.VarChar, (concepto === null) ? 'Base' : concepto);
-      request.input("FechaFin", sql.Int, fechaFinPrevision);
+      request.input("FechaFin", sql.Int, FechaFin);
 
       // console.log("concepto:", concepto);
 
@@ -154,8 +154,8 @@ app.post("/addForecast", async (req, res) => {
           @concepto,
           DATEADD(
             DAY,
-            (@fechaFinPrevision % 1000) - 1,
-            DATEFROMPARTS(@fechaFinPrevision / 1000, 1, 1)
+            (@FechaFin % 1000) - 1,
+            DATEFROMPARTS(@FechaFin / 1000, 1, 1)
           ),
         );
       `;
