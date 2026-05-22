@@ -136,7 +136,7 @@ app.post("/addForecast", async (req, res) => {
       request.input("concepto", sql.VarChar, (concepto === null) ? 'Base' : concepto);
       request.input("FechaFin", sql.DateTime, FechaFin);
 
-      console.log("FechaFin:", FechaFin);
+      // console.log("FechaFin:", FechaFin);
 
 
       const query = `
