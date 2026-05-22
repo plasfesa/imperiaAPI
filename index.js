@@ -156,7 +156,7 @@ app.post("/addForecast", async (req, res) => {
             DAY,
             (@FechaFin % 1000) - 1,
             DATEFROMPARTS(@FechaFin / 1000, 1, 1)
-          ),
+          )
         );
       `;
       // console.log("Ejecutando query:", query);
