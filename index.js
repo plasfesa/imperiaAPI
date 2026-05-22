@@ -133,12 +133,13 @@ app.post("/addForecast", async (req, res) => {
       request.input("dayCode", sql.Int, dayCode);
       request.input("Valor", sql.Float, Valor);
       request.input("concepto", sql.VarChar, (concepto === null) ? 'Base' : concepto);
+      request.input("FechaFin", sql.Int, fechaFinPrevision);
 
       // console.log("concepto:", concepto);
 
 
       const query = `
-        INSERT INTO pers_previsiones_imperia (idArticulo, idCliente, cantidad, fecha, importe, tipo)
+        INSERT INTO pers_previsiones_imperia (idArticulo, idCliente, cantidad, fecha, importe, tipo, fechaFinPrevisiones)
         VALUES (
           @itemCode,
           @cliente,
@@ -149,7 +150,12 @@ app.post("/addForecast", async (req, res) => {
             DATEFROMPARTS(@dayCode / 1000, 1, 1)
           ),
           @Valor,
-          @concepto
+          @concepto,
+          DATEADD(
+            DAY,
+            (@fechaFinPrevision % 1000) - 1,
+            DATEFROMPARTS(@fechaFinPrevision / 1000, 1, 1)
+          ),
         );
       `;
       // console.log("Ejecutando query:", query);
