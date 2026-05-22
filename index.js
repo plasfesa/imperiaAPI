@@ -152,14 +152,16 @@ app.post("/addForecast", async (req, res) => {
           ),
           @Valor,
           @concepto,
+          case when @FechaFin = 0 then null else
           DATEADD(
             DAY,
             (@FechaFin % 1000) - 1,
             DATEFROMPARTS(@FechaFin / 1000, 1, 1)
           )
+            end
         );
       `;
-      console.log("Ejecutando query:", query);
+      
 
       await request.query(query);
     }
