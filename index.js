@@ -110,7 +110,7 @@ app.post("/addForecast", async (req, res) => {
     // Vamos insertando cada previsión
     for (const f of forecasts) {
       // console.log(f);
-      const { itemCode, cliente, quantity, dayCode, Valor, concepto } = f;
+      const { itemCode, cliente, quantity, dayCode, Valor, concepto, fechaFinPrevision } = f;
 
       // Validación básica
       if (
@@ -119,10 +119,11 @@ app.post("/addForecast", async (req, res) => {
         quantity === undefined ||
         dayCode === undefined  ||
         Valor === undefined ||
-        concepto === undefined
+        concepto === undefined ||
+        fechaFinPrevision === undefined
       ) {
         throw new Error(
-          "Cada previsión debe incluir itemCode, cliente, quantity, dayCode y Valor"
+          "Cada previsión debe incluir itemCode, cliente, quantity, dayCode, Valor, concepto y fechaFinPrevision"
         );
       }
 
