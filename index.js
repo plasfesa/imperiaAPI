@@ -12,6 +12,7 @@ const sql = require("mssql");
 require('dotenv').config();  // Importante para leer el .env
 
 const { poolPromise } = require("./db");
+const { authenticateSCP, getDatasourceData } = require("./scpClient");
 
 const app = express();
 // Aumenta el límite, por ejemplo a 10 MB
@@ -22,13 +23,81 @@ app.use(express.urlencoded({ limit: "10mb", extended: true }));
 app.use(express.json());
 
 // Middleware para validar api_key
-app.use((req, res, next) => {  
-  const apiKey = req.query.api_key || req.headers['x-api-key']; 
+app.use((req, res, next) => {
+  const apiKey = req.query.api_key || req.headers['x-api-key'];
+  console.log(`[api_key middleware] ${req.method} ${req.path} - apiKey recibida:`, apiKey);
   if (!apiKey || apiKey !== process.env.API_KEY) {
+    console.log("[api_key middleware] API Key inválida o ausente -> 401");
     return res.status(401).json({ error: "No autorizado: API Key inválida" });
   }
+  console.log("[api_key middleware] API Key válida -> next()");
   next();
 });
+
+// Elimina todas las previsiones (misma lógica que usa el endpoint /delete)
+async function deleteAllPrevisiones(pool) {
+  await pool.request().query("DELETE FROM pers_previsiones_imperia;");
+}
+
+// Valida e inserta previsiones (misma lógica que usa el endpoint /addForecast)
+async function insertForecasts(pool, forecasts) {
+  for (const f of forecasts) {
+    const { itemCode, cliente, quantity, dayCode, Valor } = f;
+    const concepto = f.concepto !== undefined ? f.concepto : f.Concepto;
+    const FechaFin = f.FechaFin !== undefined ? f.FechaFin : null;
+
+    if (
+      itemCode === undefined ||
+      cliente === undefined ||
+      quantity === undefined ||
+      dayCode === undefined ||
+      Valor === undefined ||
+      concepto === undefined
+    ) {
+      throw new Error(
+        "Cada previsión debe incluir itemCode, cliente, quantity, dayCode, Valor y concepto"
+      );
+    }
+
+    const request = pool.request();
+    request.input("itemCode", sql.VarChar, itemCode);
+    request.input("cliente", sql.VarChar, cliente);
+    request.input("quantity", sql.Float, quantity);
+    request.input("dayCode", sql.Int, dayCode);
+    request.input("Valor", sql.Float, Valor);
+    request.input("concepto", sql.VarChar, (concepto === null) ? 'Base' : concepto);
+    request.input("FechaFin", sql.DateTime, FechaFin);
+
+    const query = `
+      INSERT INTO pers_previsiones_imperia (idArticulo, idCliente, cantidad, fecha, importe, tipo, fechaFinPrevisiones)
+      VALUES (
+        @itemCode,
+        @cliente,
+        @quantity,
+        DATEADD(
+          DAY,
+          (@dayCode % 1000) - 1,
+          DATEFROMPARTS(@dayCode / 1000, 1, 1)
+        ),
+        @Valor,
+        @concepto,
+        @FechaFin
+      );
+    `;
+
+    await request.query(query);
+  }
+}
+
+// Extrae el array de previsiones de la respuesta de SCP (formato aún por confirmar)
+function extractForecastRecords(data) {
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.Data)) return data.Data;
+  if (data && Array.isArray(data.Items)) return data.Items;
+  if (data && Array.isArray(data.Rows)) return data.Rows;
+  if (data && Array.isArray(data.Records)) return data.Records;
+  return null;
+}
 
 // Ruta principal
 app.get("/", (req, res) => {
@@ -103,77 +172,15 @@ app.post("/addForecast", async (req, res) => {
     });
   }
 
-  let transaction;
-
   try {
     const pool = await poolPromise;
-    // Vamos insertando cada previsión
-    for (const f of forecasts) {
-      // console.log(f);
-      const { itemCode, cliente, quantity, dayCode, Valor, concepto, FechaFin } = f;
-
-      // Validación básica
-      if (
-        itemCode === undefined ||
-        cliente === undefined ||
-        quantity === undefined ||
-        dayCode === undefined  ||
-        Valor === undefined ||
-        concepto === undefined ||
-        FechaFin === undefined
-      ) {
-        throw new Error(
-          "Cada previsión debe incluir itemCode, cliente, quantity, dayCode, Valor, concepto y FechaFin"
-        );
-      }
-
-      const request = pool.request();
-      request.input("itemCode", sql.VarChar, itemCode);
-      request.input("cliente", sql.VarChar, cliente);
-      request.input("quantity", sql.Float, quantity);
-      request.input("dayCode", sql.Int, dayCode);
-      request.input("Valor", sql.Float, Valor);
-      request.input("concepto", sql.VarChar, (concepto === null) ? 'Base' : concepto);
-      request.input("FechaFin", sql.DateTime, FechaFin);
-
-      // console.log("FechaFin:", FechaFin);
-
-
-      const query = `
-        INSERT INTO pers_previsiones_imperia (idArticulo, idCliente, cantidad, fecha, importe, tipo, fechaFinPrevisiones)
-        VALUES (
-          @itemCode,
-          @cliente,
-          @quantity,
-          DATEADD(
-            DAY,
-            (@dayCode % 1000) - 1,
-            DATEFROMPARTS(@dayCode / 1000, 1, 1)
-          ),
-          @Valor,
-          @concepto,
-          @FechaFin
-        );
-      `;
-      
-
-      await request.query(query);
-    }
-
-   // await transaction.commit();
+    await insertForecasts(pool, forecasts);
 
     res.status(201).json({
       message: "Previsiones insertadas correctamente",
       count: forecasts.length,
     });
   } catch (err) {
-    if (transaction) {
-      try {
-        await transaction.rollback();
-      } catch (_) {
-        // ignoramos errores de rollback
-      }
-    }
     res
       .status(500)
       .send("Error al insertar previsiones: " + err.message);
@@ -182,28 +189,14 @@ app.post("/addForecast", async (req, res) => {
 
 // POST - deleteForecast
 app.delete("/delete", async (req, res) => {
-  let transaction;
-
   try {
     const pool = await poolPromise;
-    // Elimina todas las previsiones
-     const request = pool.request();
-
-    await request.query(`
-      DELETE FROM pers_previsiones_imperia;
-    `);
+    await deleteAllPrevisiones(pool);
 
     res.status(200).json({
       message: "Todas las previsiones han sido eliminadas correctamente"
     });
-
   } catch (err) {
-    if (transaction) {
-      try {
-        await transaction.rollback();
-      } catch (_) {}
-    }
-
     res.status(500).send("Error al eliminar previsiones: " + err.message);
   }
 });
@@ -275,6 +268,98 @@ app.get("/produccion/calendarioLineasProduccion", async (req, res) => {
 
 
 // ****************[FIN] PRODUCCIÓN **********************
+
+
+// ********************************************************
+// ************************** SCP **************************
+// ********************************************************
+
+// POST - Autenticación contra SCP (devuelve el access_token)
+app.post("/scp/authenticate", async (req, res) => {
+  console.log("[/scp/authenticate] Petición recibida");
+  try {
+    console.log("[/scp/authenticate] Llamando a authenticateSCP()...");
+    const accessToken = await authenticateSCP();
+    console.log("[/scp/authenticate] authenticateSCP() OK, token length:", accessToken?.length);
+    if (res.headersSent) {
+      console.log("[/scp/authenticate] headersSent ya era true, no respondo de nuevo");
+      return;
+    }
+    res.json({ access_token: accessToken });
+    console.log("[/scp/authenticate] Respuesta enviada al cliente");
+  } catch (err) {
+    console.error("[/scp/authenticate] Error al autenticar con SCP:", err);
+    if (res.headersSent) {
+      console.log("[/scp/authenticate] headersSent ya era true en catch, no respondo de nuevo");
+      return;
+    }
+    const detail = err.response?.data || err.message;
+    res.status(502).json({ error: "Error al autenticar con SCP", detail });
+  }
+});
+
+// POST - Job SCP: autentica y exporta las previsiones (datasource) desde SCP
+app.post("/scp/previsiones", async (req, res) => {
+  console.log("[/scp/previsiones] Petición recibida");
+  try {
+    console.log("[/scp/previsiones] Llamando a authenticateSCP()...");
+    const accessToken = await authenticateSCP();
+    console.log("[/scp/previsiones] authenticateSCP() OK, token length:", accessToken?.length);
+
+    console.log("[/scp/previsiones] Llamando a getDatasourceData()...");
+    const data = await getDatasourceData(accessToken);
+    console.log("[/scp/previsiones] getDatasourceData() OK");
+
+    if (data && (data.Error === true || (data.ErrorCode !== undefined && data.ErrorCode !== 0))) {
+      console.error("[/scp/previsiones] SCP devolvió error:", JSON.stringify(data));
+      if (res.headersSent) return;
+      return res.status(502).json({
+        error: "SCP devolvió un error al exportar las previsiones",
+        data,
+      });
+    }
+
+    const forecasts = extractForecastRecords(data);
+    if (!forecasts) {
+      console.error("[/scp/previsiones] Respuesta de SCP no reconocida:", JSON.stringify(data));
+      if (res.headersSent) return;
+      return res.status(502).json({
+        error: "SCP no devolvió previsiones en un formato reconocido",
+        data,
+      });
+    }
+    console.log("[/scp/previsiones] Previsiones recibidas:", forecasts.length);
+
+    const pool = await poolPromise;
+
+    console.log("[/scp/previsiones] Datos recibidos correctamente, borrando previsiones existentes...");
+    await deleteAllPrevisiones(pool);
+    console.log("[/scp/previsiones] Previsiones existentes borradas, insertando las nuevas...");
+
+    await insertForecasts(pool, forecasts);
+    console.log("[/scp/previsiones] Previsiones insertadas:", forecasts.length);
+
+    if (res.headersSent) {
+      console.log("[/scp/previsiones] headersSent ya era true, no respondo de nuevo");
+      return;
+    }
+    res.json({
+      message: "Previsiones sincronizadas desde SCP correctamente",
+      count: forecasts.length,
+    });
+    console.log("[/scp/previsiones] Respuesta enviada al cliente");
+  } catch (err) {
+    console.error("[/scp/previsiones] Error en el job de SCP:", err);
+    if (res.headersSent) {
+      console.log("[/scp/previsiones] headersSent ya era true en catch, no respondo de nuevo");
+      return;
+    }
+    const detail = err.response?.data || err.message;
+    res.status(502).json({ error: "Error al exportar previsiones de SCP", detail });
+  }
+});
+
+// ****************[FIN] SCP ******************************
 
 
 const hostname = process.env.HOSTNAME;
