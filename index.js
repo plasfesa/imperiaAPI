@@ -25,12 +25,12 @@ app.use(express.json());
 // Middleware para validar api_key
 app.use((req, res, next) => {
   const apiKey = req.query.api_key || req.headers['x-api-key'];
-  console.log(`[api_key middleware] ${req.method} ${req.path} - apiKey recibida:`, apiKey);
+  // console.log(`[api_key middleware] ${req.method} ${req.path} - apiKey recibida:`, apiKey);
   if (!apiKey || apiKey !== process.env.API_KEY) {
-    console.log("[api_key middleware] API Key inválida o ausente -> 401");
+    // console.log("[api_key middleware] API Key inválida o ausente -> 401");
     return res.status(401).json({ error: "No autorizado: API Key inválida" });
   }
-  console.log("[api_key middleware] API Key válida -> next()");
+  // console.log("[api_key middleware] API Key válida -> next()");
   next();
 });
 
@@ -325,19 +325,19 @@ async function insertArticulosSustitutos(pool, articulosSustitutos) {
 // POST - Autenticación contra SCP (devuelve el access_token)
 app.post("/scp/authenticate", async (req, res) => {
   try {
-    console.log("[/scp/authenticate] Llamando a authenticateSCP()...");
+    // console.log("[/scp/authenticate] Llamando a authenticateSCP()...");
     const accessToken = await authenticateSCP();
-    console.log("[/scp/authenticate] authenticateSCP() OK, token length:", accessToken?.length);
+    // console.log("[/scp/authenticate] authenticateSCP() OK, token length:", accessToken?.length);
     if (res.headersSent) {
-      console.log("[/scp/authenticate] headersSent ya era true, no respondo de nuevo");
+      // console.log("[/scp/authenticate] headersSent ya era true, no respondo de nuevo");
       return;
     }
     res.json({ access_token: accessToken });
-    console.log("[/scp/authenticate] Respuesta enviada al cliente");
+    // console.log("[/scp/authenticate] Respuesta enviada al cliente");
   } catch (err) {
     console.error("[/scp/authenticate] Error al autenticar con SCP:", err);
     if (res.headersSent) {
-      console.log("[/scp/authenticate] headersSent ya era true en catch, no respondo de nuevo");
+      // console.log("[/scp/authenticate] headersSent ya era true en catch, no respondo de nuevo");
       return;
     }
     const detail = err.response?.data || err.message;
@@ -349,18 +349,18 @@ app.post("/scp/authenticate", async (req, res) => {
 
 // POST - Job SCP: autentica y exporta las previsiones (datasource) desde SCP
 app.post("/scp/previsiones", async (req, res) => {
-  console.log("[/scp/previsiones] Petición recibida");
+  // console.log("[/scp/previsiones] Petición recibida");
   try {
-    console.log("[/scp/previsiones] Llamando a authenticateSCP()...");
+    // console.log("[/scp/previsiones] Llamando a authenticateSCP()...");
     const accessToken = await authenticateSCP();
-    console.log("[/scp/previsiones] authenticateSCP() OK, token length:", accessToken?.length);
+    // console.log("[/scp/previsiones] authenticateSCP() OK, token length:", accessToken?.length);
 
-    console.log("[/scp/previsiones] Llamando a getDatasourceData()...");
+    // console.log("[/scp/previsiones] Llamando a getDatasourceData()...");
     const data = await getDatasourceData(accessToken, { idConfiguration: 1, page: 1, size: -1 });
-    console.log("[/scp/previsiones] getDatasourceData() OK");
+    // console.log("[/scp/previsiones] getDatasourceData() OK");
 
     if (data && (data.Error === true || (data.ErrorCode !== undefined && data.ErrorCode !== 0))) {
-      console.error("[/scp/previsiones] SCP devolvió error:", JSON.stringify(data));
+      // console.error("[/scp/previsiones] SCP devolvió error:", JSON.stringify(data));
       if (res.headersSent) return;
       return res.status(502).json({
         error: "SCP devolvió un error al exportar las previsiones",
@@ -370,38 +370,38 @@ app.post("/scp/previsiones", async (req, res) => {
 
     const forecasts = extractForecastRecords(data);
     if (!forecasts) {
-      console.error("[/scp/previsiones] Respuesta de SCP no reconocida:", JSON.stringify(data));
+      // console.error("[/scp/previsiones] Respuesta de SCP no reconocida:", JSON.stringify(data));
       if (res.headersSent) return;
       return res.status(502).json({
         error: "SCP no devolvió previsiones en un formato reconocido",
         data,
       });
     }
-    console.log("[/scp/previsiones] Previsiones recibidas:", forecasts.length);
+    // console.log("[/scp/previsiones] Previsiones recibidas:", forecasts.length);
 
     const pool = await poolPromise;
 
-    console.log("[/scp/previsiones] Datos recibidos correctamente, borrando previsiones existentes...");
+    // console.log("[/scp/previsiones] Datos recibidos correctamente, borrando previsiones existentes...");
     await deleteAllPrevisiones(pool);
-    console.log("[/scp/previsiones] Previsiones existentes borradas, insertando las nuevas...");
+    // console.log("[/scp/previsiones] Previsiones existentes borradas, insertando las nuevas...");
 
     await insertForecasts(pool, forecasts);
-    console.log("[/scp/previsiones] Previsiones insertadas:", forecasts.length);
+    // console.log("[/scp/previsiones] Previsiones insertadas:", forecasts.length);
     await updateForecastFechaFinPrevisiones();
 
     if (res.headersSent) {
-      console.log("[/scp/previsiones] headersSent ya era true, no respondo de nuevo");
+      // console.log("[/scp/previsiones] headersSent ya era true, no respondo de nuevo");
       return;
     }
     res.json({
       message: "Previsiones sincronizadas desde SCP correctamente",
       count: forecasts.length,
     });
-    console.log("[/scp/previsiones] Respuesta enviada al cliente");
+    // console.log("[/scp/previsiones] Respuesta enviada al cliente");
   } catch (err) {
-    console.error("[/scp/previsiones] Error en el job de SCP:", err);
+    // console.error("[/scp/previsiones] Error en el job de SCP:", err);
     if (res.headersSent) {
-      console.log("[/scp/previsiones] headersSent ya era true en catch, no respondo de nuevo");
+      // console.log("[/scp/previsiones] headersSent ya era true en catch, no respondo de nuevo");
       return;
     }
     const detail = err.response?.data || err.message;
@@ -413,18 +413,18 @@ app.post("/scp/previsiones", async (req, res) => {
 
 // POST - Job SCP: autentica y exporta las previsiones (datasource) desde SCP
 app.post("/scp/articulosSustitutos", async (req, res) => {
-  console.log("[/scp/articulosSustitutos] Petición recibida");
+  // console.log("[/scp/articulosSustitutos] Petición recibida");
   try {
-    console.log("[/scp/articulosSustitutos] Llamando a authenticateSCP()...");
+    // console.log("[/scp/articulosSustitutos] Llamando a authenticateSCP()...");
     const accessToken = await authenticateSCP();
-    console.log("[/scp/articulosSustitutos] authenticateSCP() OK, token length:", accessToken?.length);
+    // console.log("[/scp/articulosSustitutos] authenticateSCP() OK, token length:", accessToken?.length);
 
-    console.log("[/scp/articulosSustitutos] Llamando a getDatasourceData()...");
+    // console.log("[/scp/articulosSustitutos] Llamando a getDatasourceData()...");
     const data = await getDatasourceData(accessToken, { idConfiguration: 22, page: 1, size: -1 });
-    console.log("[/scp/articulosSustitutos] getDatasourceData() OK");
+    // console.log("[/scp/articulosSustitutos] getDatasourceData() OK");
 
     if (data && (data.Error === true || (data.ErrorCode !== undefined && data.ErrorCode !== 0))) {
-      console.error("[/scp/articulosSustitutos] SCP devolvió error:", JSON.stringify(data));
+      // console.error("[/scp/articulosSustitutos] SCP devolvió error:", JSON.stringify(data));
       if (res.headersSent) return;
       return res.status(502).json({
         error: "SCP devolvió un error al exportar los artículos sustitutos",
@@ -434,27 +434,27 @@ app.post("/scp/articulosSustitutos", async (req, res) => {
 
     const articulosSustitutos = extractForecastRecords(data);
     if (!articulosSustitutos) {
-       console.error("[/scp/articulosSustitutos] Respuesta de SCP no reconocida:", JSON.stringify(data));
+       // console.error("[/scp/articulosSustitutos] Respuesta de SCP no reconocida:", JSON.stringify(data));
        if (res.headersSent) return;
        return res.status(502).json({
          error: "SCP no devolvió artículos sustitutos en un formato reconocido",
          data,
        });
     }
-    console.log("[/scp/articulosSustitutos] Artículos sustitutos recibidos:", articulosSustitutos.length);
-    console.log("[/scp/articulosSustitutos] Artículos sustitutos:", articulosSustitutos);
+    // console.log("[/scp/articulosSustitutos] Artículos sustitutos recibidos:", articulosSustitutos.length);
+    // console.log("[/scp/articulosSustitutos] Artículos sustitutos:", articulosSustitutos);
 
     const pool = await poolPromise;
 
-    console.log("[/scp/articulosSustitutos] Datos recibidos correctamente, borrando artículos sustitutos existentes...");
+    // console.log("[/scp/articulosSustitutos] Datos recibidos correctamente, borrando artículos sustitutos existentes...");
     await deleteAllArticulosSustitutos(pool);
-    console.log("[/scp/articulosSustitutos] Artículos sustitutos existentes borrados, insertando los nuevos...");
+    // console.log("[/scp/articulosSustitutos] Artículos sustitutos existentes borrados, insertando los nuevos...");
 
     await insertArticulosSustitutos(pool, articulosSustitutos);
-    console.log("[/scp/articulosSustitutos] Artículos sustitutos insertados:", articulosSustitutos.length);
+    // console.log("[/scp/articulosSustitutos] Artículos sustitutos insertados:", articulosSustitutos.length);
 
     if (res.headersSent) {
-      console.log("[/scp/articulosSustitutos] headersSent ya era true, no respondo de nuevo");
+      // console.log("[/scp/articulosSustitutos] headersSent ya era true, no respondo de nuevo");
       return;
     }
     res.json({
@@ -462,11 +462,11 @@ app.post("/scp/articulosSustitutos", async (req, res) => {
       //count: forecasts.length,
     });
 
-    console.log("[/scp/articulosSustitutos] Respuesta enviada al cliente");
+    // // console.log("[/scp/articulosSustitutos] Respuesta enviada al cliente");
   } catch (err) {
-    console.error("[/scp/articulosSustitutos] Error en el job de SCP:", err);
+    // console.error("[/scp/articulosSustitutos] Error en el job de SCP:", err);
     if (res.headersSent) {
-      console.log("[/scp/articulosSustitutos] headersSent ya era true en catch, no respondo de nuevo");
+      // console.log("[/scp/articulosSustitutos] headersSent ya era true en catch, no respondo de nuevo");
       return;
     }
     const detail = err.response?.data || err.message;
