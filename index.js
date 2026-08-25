@@ -270,13 +270,60 @@ app.get("/produccion/calendarioLineasProduccion", async (req, res) => {
 // ****************[FIN] PRODUCCIÓN **********************
 
 
+// Elimina todas las previsiones (misma lógica que usa el endpoint /delete)
+async function deleteAllArticulosSustitutos(pool) {
+  await pool.request().query("DELETE FROM pers_articulos_sustitutos;");
+}
+
+// Elimina todas las previsiones (misma lógica que usa el endpoint /delete)
+async function updateForecastFechaFinPrevisiones(pool) {
+  await pool.request().query("execute pers_sp_previsiones_imperia_actualiza_fechaFinPrevisiones;");
+}
+
+// Valida e inserta previsiones (misma lógica que usa el endpoint /addForecast)
+async function insertArticulosSustitutos(pool, articulosSustitutos) {
+  for (const f of articulosSustitutos) {
+    const { CodigoAntiguo, CodigoSustituto, Multiplicador, FechaSustitucion } = f;
+
+    if (
+      CodigoAntiguo === undefined ||
+      CodigoSustituto === undefined ||
+      Multiplicador === undefined
+    ) {
+      throw new Error(
+        "Cada artículo sustituto debe incluir CodigoAntiguo, CodigoSustituto y Multiplicador"
+      );
+    }
+
+    const request = pool.request();
+    request.input("idArticuloAntiguo", sql.VarChar, CodigoAntiguo);
+    request.input("idArticuloNuevo", sql.VarChar, CodigoSustituto);
+    request.input("multiplicador", sql.Float, Multiplicador);
+    request.input("fechaSustitucion", sql.DateTime, FechaSustitucion ?? new Date());
+
+    const query = `
+      INSERT INTO pers_articulos_sustitutos (idArticuloAntiguo, idArticuloNuevo, multiplicador, fechaSustitucion)
+      VALUES (
+        @idArticuloAntiguo,
+        @idArticuloNuevo,
+        @multiplicador,
+        @fechaSustitucion
+      );
+    `;
+
+    await request.query(query);
+  }
+}
+
+
+
+
 // ********************************************************
 // ************************** SCP **************************
 // ********************************************************
 
 // POST - Autenticación contra SCP (devuelve el access_token)
 app.post("/scp/authenticate", async (req, res) => {
-  console.log("[/scp/authenticate] Petición recibida");
   try {
     console.log("[/scp/authenticate] Llamando a authenticateSCP()...");
     const accessToken = await authenticateSCP();
@@ -298,6 +345,8 @@ app.post("/scp/authenticate", async (req, res) => {
   }
 });
 
+
+
 // POST - Job SCP: autentica y exporta las previsiones (datasource) desde SCP
 app.post("/scp/previsiones", async (req, res) => {
   console.log("[/scp/previsiones] Petición recibida");
@@ -307,7 +356,7 @@ app.post("/scp/previsiones", async (req, res) => {
     console.log("[/scp/previsiones] authenticateSCP() OK, token length:", accessToken?.length);
 
     console.log("[/scp/previsiones] Llamando a getDatasourceData()...");
-    const data = await getDatasourceData(accessToken);
+    const data = await getDatasourceData(accessToken, { idConfiguration: 1, page: 1, size: -1 });
     console.log("[/scp/previsiones] getDatasourceData() OK");
 
     if (data && (data.Error === true || (data.ErrorCode !== undefined && data.ErrorCode !== 0))) {
@@ -338,6 +387,7 @@ app.post("/scp/previsiones", async (req, res) => {
 
     await insertForecasts(pool, forecasts);
     console.log("[/scp/previsiones] Previsiones insertadas:", forecasts.length);
+    await updateForecastFechaFinPrevisiones();
 
     if (res.headersSent) {
       console.log("[/scp/previsiones] headersSent ya era true, no respondo de nuevo");
@@ -356,6 +406,71 @@ app.post("/scp/previsiones", async (req, res) => {
     }
     const detail = err.response?.data || err.message;
     res.status(502).json({ error: "Error al exportar previsiones de SCP", detail });
+  }
+});
+
+
+
+// POST - Job SCP: autentica y exporta las previsiones (datasource) desde SCP
+app.post("/scp/articulosSustitutos", async (req, res) => {
+  console.log("[/scp/articulosSustitutos] Petición recibida");
+  try {
+    console.log("[/scp/articulosSustitutos] Llamando a authenticateSCP()...");
+    const accessToken = await authenticateSCP();
+    console.log("[/scp/articulosSustitutos] authenticateSCP() OK, token length:", accessToken?.length);
+
+    console.log("[/scp/articulosSustitutos] Llamando a getDatasourceData()...");
+    const data = await getDatasourceData(accessToken, { idConfiguration: 22, page: 1, size: -1 });
+    console.log("[/scp/articulosSustitutos] getDatasourceData() OK");
+
+    if (data && (data.Error === true || (data.ErrorCode !== undefined && data.ErrorCode !== 0))) {
+      console.error("[/scp/articulosSustitutos] SCP devolvió error:", JSON.stringify(data));
+      if (res.headersSent) return;
+      return res.status(502).json({
+        error: "SCP devolvió un error al exportar los artículos sustitutos",
+        data,
+      });
+    }
+
+    const articulosSustitutos = extractForecastRecords(data);
+    if (!articulosSustitutos) {
+       console.error("[/scp/articulosSustitutos] Respuesta de SCP no reconocida:", JSON.stringify(data));
+       if (res.headersSent) return;
+       return res.status(502).json({
+         error: "SCP no devolvió artículos sustitutos en un formato reconocido",
+         data,
+       });
+    }
+    console.log("[/scp/articulosSustitutos] Artículos sustitutos recibidos:", articulosSustitutos.length);
+    console.log("[/scp/articulosSustitutos] Artículos sustitutos:", articulosSustitutos);
+
+    const pool = await poolPromise;
+
+    console.log("[/scp/articulosSustitutos] Datos recibidos correctamente, borrando artículos sustitutos existentes...");
+    await deleteAllArticulosSustitutos(pool);
+    console.log("[/scp/articulosSustitutos] Artículos sustitutos existentes borrados, insertando los nuevos...");
+
+    await insertArticulosSustitutos(pool, articulosSustitutos);
+    console.log("[/scp/articulosSustitutos] Artículos sustitutos insertados:", articulosSustitutos.length);
+
+    if (res.headersSent) {
+      console.log("[/scp/articulosSustitutos] headersSent ya era true, no respondo de nuevo");
+      return;
+    }
+    res.json({
+      message: "Artículos sustitutos sincronizados desde SCP correctamente",
+      //count: forecasts.length,
+    });
+
+    console.log("[/scp/articulosSustitutos] Respuesta enviada al cliente");
+  } catch (err) {
+    console.error("[/scp/articulosSustitutos] Error en el job de SCP:", err);
+    if (res.headersSent) {
+      console.log("[/scp/articulosSustitutos] headersSent ya era true en catch, no respondo de nuevo");
+      return;
+    }
+    const detail = err.response?.data || err.message;
+    res.status(502).json({ error: "Error al exportar artículos sustitutos de SCP", detail });
   }
 });
 
