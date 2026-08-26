@@ -159,6 +159,39 @@ app.get("/bom", async (req, res) => {
   }
 });
 
+// 06 - mproveedores
+app.get("/mproveedores", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query("SELECT * FROM vpers_imperia_mproveedores");
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).send("Error en la consulta: " + err.message);
+  }
+});
+
+// 07 - mProveedorMaterial
+app.get("/mproveedorMaterial", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query("SELECT * FROM vpers_imperia_mproveedor_material");
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).send("Error en la consulta: " + err.message);
+  }
+});
+
+
+// 08 - mOrdenesCompraAbiertas
+app.get("/mordenesCompraAbiertas", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query("SELECT * FROM vpers_imperia_mordenes_compra_abiertas");
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).send("Error en la consulta: " + err.message);
+  }
+});
 
 
 // POST - addForecast
