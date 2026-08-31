@@ -509,6 +509,44 @@ app.post("/scp/articulosSustitutos", async (req, res) => {
 
 // ****************[FIN] SCP ******************************
 
+// POST - Inserta OFs en el ERP
+app.post("/addOf", async (req, res) => {
+  try {
+    // Puede venir un objeto o un array; lo normalizamos a array
+  const ofs = Array.isArray(req.body) ? req.body : [req.body];
+
+  if (!ofs || ofs.length === 0) {
+    return res.status(400).json({
+      error: "Debe enviar al menos un OF en el cuerpo de la petición",
+    });
+  }
+
+  try {
+    const pool = await poolPromise;
+    //await insertOFs(pool, ofs);
+
+    res.status(201).json({
+      message: "OFs insertados correctamente",
+      count: ofs.length,
+    });
+  } catch (err) {
+    res
+      .status(500)
+      .send("Error al insertar OFs: " + err.message);
+  }
+    
+  } catch (err) {
+    if (res.headersSent) {
+      return;
+    }
+    const detail = err.response?.data || err.message;
+    res.status(502).json({ error: "Error insertar OF", detail });
+  }
+});
+
+
+
+
 
 const hostname = process.env.HOSTNAME;
 const httpsPort = process.env.PORT;
