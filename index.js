@@ -420,7 +420,7 @@ app.post("/scp/previsiones", async (req, res) => {
 
     await insertForecasts(pool, forecasts);
     // console.log("[/scp/previsiones] Previsiones insertadas:", forecasts.length);
-    await updateForecastFechaFinPrevisiones();
+    await updateForecastFechaFinPrevisiones(pool);
 
     if (res.headersSent) {
       // console.log("[/scp/previsiones] headersSent ya era true, no respondo de nuevo");
