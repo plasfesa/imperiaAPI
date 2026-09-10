@@ -39,6 +39,12 @@ async function deleteAllPrevisiones(pool) {
   await pool.request().query("DELETE FROM pers_previsiones_imperia;");
 }
 
+
+// Elimina todas las ofs scp)
+async function deleteAllOfsScp(pool) {
+  await pool.request().query("DELETE FROM pers_ofs_imperia;");
+}
+
 // Valida e inserta previsiones (misma lógica que usa el endpoint /addForecast)
 async function insertForecasts(pool, forecasts) {
   for (const f of forecasts) {
@@ -348,6 +354,56 @@ async function insertArticulosSustitutos(pool, articulosSustitutos) {
   }
 }
 
+// Valida e inserta previsiones (misma lógica que usa el endpoint /addForecast)
+async function insertOfsScp(pool, ofsscp) {
+  for (const f of ofsscp) {
+    const { id, Origen, CodigoProducto, CodigoLinea, Cantidad, FechaInicio, FechaFinal, FechaMaximaProduccion, OrdenSecuenciacion } = f;
+
+    if (
+      id == undefined ||
+      Origen == undefined ||
+      CodigoProducto == undefined ||
+      CodigoLinea == undefined ||
+      Cantidad == undefined ||
+      FechaInicio == undefined ||
+      FechaFinal == undefined ||
+      FechaMaximaProduccion == undefined ||
+      OrdenSecuenciacion == undefined
+    ) {
+      throw new Error(
+        "Cada orden de fabricación debe incluir todos los campos requeridos"
+      );
+    }
+
+    const request = pool.request();
+    request.input("id", sql.Int, id);
+    request.input("Origen", sql.VarChar, Origen);
+    request.input("CodigoProducto", sql.VarChar, CodigoProducto);
+    request.input("CodigoLinea", sql.VarChar, CodigoLinea);
+    request.input("Cantidad", sql.Float, Cantidad);
+    request.input("FechaInicio", sql.DateTime, FechaInicio);
+    request.input("FechaFinal", sql.DateTime, FechaFinal);
+    request.input("FechaMaximaProduccion", sql.DateTime, FechaMaximaProduccion);
+    request.input("OrdenSecuenciacion", sql.Int, OrdenSecuenciacion);
+
+    const query = `
+      insert into pers_ofs_imperia (idArticulo, idMaquina, cantidad, fechaInicio, fechaFin, fechaMaximaProduccion, ordenSecuenciacion, origen, idImperia)
+      VALUES (
+        @CodigoProducto,
+        @CodigoLinea,
+        @Cantidad,
+        @FechaInicio,
+        @FechaFinal,
+        @FechaMaximaProduccion,
+        @OrdenSecuenciacion,
+        @Origen,
+        @id
+      );
+    `;
+
+    await request.query(query);
+  }
+}
 
 
 
@@ -507,6 +563,70 @@ app.post("/scp/articulosSustitutos", async (req, res) => {
   }
 });
 
+
+
+// POST - Job SCP: autentica y exporta las previsiones (datasource) desde SCP
+app.post("/scp/ofsSCP", async (req, res) => {
+  // console.log("[/scp/ofsSCP] Petición recibida");
+  try {
+    //console.log("[/scp/ofsSCP] Llamando a authenticateSCP()...");
+    const accessToken = await authenticateSCP();
+    //console.log("[/scp/ofsSCP] authenticateSCP() OK, token length:", accessToken?.length);
+
+    //console.log("[/scp/ofsSCP] Llamando a getDatasourceData()...");
+    const data = await getDatasourceData(accessToken, { idConfiguration: 27, page: 1, size: -1 });
+    //console.log("[/scp/ofsSCP] getDatasourceData() OK");
+    // console.log( data );
+    if (data && (data.Error === true || (data.ErrorCode !== undefined && data.ErrorCode !== 0))) {
+      //console.error("[/scp/ofsSCP] SCP devolvió error:", JSON.stringify(data));
+      if (res.headersSent) return;
+      return res.status(502).json({
+        error: "SCP devolvió un error al exportar los OFs",
+        data,
+      });
+    }
+
+    const ofsscp = extractForecastRecords(data);
+    if (!ofsscp) {
+       //console.error("[/scp/ofsSCP] Respuesta de SCP no reconocida:", JSON.stringify(data));
+       if (res.headersSent) return;
+       return res.status(502).json({
+         error: "SCP no devolvió OFs en un formato reconocido",
+         data,
+       });
+    }
+    //console.log("[/scp/ofsSCP] OFs recibidos:", ofsscp.length);
+    //console.log("[/scp/ofsSCP] OFs:", ofsscp);
+
+    const pool = await poolPromise;
+
+    //console.log("[/scp/ofsSCP] Datos recibidos correctamente, borrando OFs existentes...");
+    await deleteAllOfsScp(pool);
+    // console.log("[/scp/ofsSCP] OFs existentes borrados, insertando los nuevos...");
+
+    await insertOfsScp(pool, ofsscp);
+    // console.log("[/scp/ofsSCP] OFs insertados:", ofsscp.length);
+
+    if (res.headersSent) {
+      // console.log("[/scp/ofsSCP] headersSent ya era true, no respondo de nuevo");
+      return;
+    }
+    res.json({
+       message: "OFs sincronizados desde SCP correctamente",
+      count: ofsscp.length,
+    });
+
+    // console.log("[/scp/ofsSCP] Respuesta enviada al cliente");
+  } catch (err) {
+    // console.error("[/scp/ofsSCP] Error en el job de SCP:", err);
+    if (res.headersSent) {
+      // console.log("[/scp/ofsSCP] headersSent ya era true en catch, no respondo de nuevo");
+      return;
+    }
+    const detail = err.response?.data || err.message;
+    res.status(502).json({ error: "Error al exportar OFs de SCP", detail });
+  }
+});
 // ****************[FIN] SCP ******************************
 
 // POST - Inserta OFs en el ERP

@@ -6,9 +6,9 @@ const SCP_BASE_URL = process.env.SCP_BASE_URL || "https://scp.imperiascm.com";
 // Llama al endpoint de autenticación de SCP y devuelve el access_token
 async function authenticateSCP() {
   const url = `${SCP_BASE_URL}/api/authentication/authenticate`;
-  console.log("[authenticateSCP] URL:", url);
-  console.log("[authenticateSCP] SCP_EMAIL:", process.env.SCP_EMAIL);
-  console.log("[authenticateSCP] SCP_PASSWORD definida:", !!process.env.SCP_PASSWORD);
+  // console.log("[authenticateSCP] URL:", url);
+  // console.log("[authenticateSCP] SCP_EMAIL:", process.env.SCP_EMAIL);
+  // console.log("[authenticateSCP] SCP_PASSWORD definida:", !!process.env.SCP_PASSWORD);
 
   let response;
   try {
@@ -21,14 +21,14 @@ async function authenticateSCP() {
       { timeout: 15000 }
     );
   } catch (err) {
-    console.error("[authenticateSCP] axios.post falló:", err.message);
-    console.error("[authenticateSCP] err.response?.status:", err.response?.status);
-    console.error("[authenticateSCP] err.response?.data:", err.response?.data);
+    // console.error("[authenticateSCP] axios.post falló:", err.message);
+    // console.error("[authenticateSCP] err.response?.status:", err.response?.status);
+    // console.error("[authenticateSCP] err.response?.data:", err.response?.data);
     throw err;
   }
 
-  console.log("[authenticateSCP] status:", response.status);
-  console.log("[authenticateSCP] data:", JSON.stringify(response.data));
+  // console.log("[authenticateSCP] status:", response.status);
+  // console.log("[authenticateSCP] data:", JSON.stringify(response.data));
 
   const { data } = response;
   if (!data || !data.Token) {
@@ -45,8 +45,8 @@ async function getDatasourceData(accessToken, { idConfiguration = 1, page = 1, s
     IdConfiguration: idConfiguration,
     Pagination: { Page: page, Size: size },
   };
-  console.log("[getDatasourceData] URL:", url);
-  console.log("[getDatasourceData] body:", JSON.stringify(body));
+  // console.log("[getDatasourceData] URL:", url);
+  // console.log("[getDatasourceData] body:", JSON.stringify(body));
 
   let response;
   try {
@@ -55,13 +55,13 @@ async function getDatasourceData(accessToken, { idConfiguration = 1, page = 1, s
       headers: { Authorization: `Bearer ${accessToken}` },
     });
   } catch (err) {
-    console.error("[getDatasourceData] axios.post falló:", err.message);
-    console.error("[getDatasourceData] err.response?.status:", err.response?.status);
-    console.error("[getDatasourceData] err.response?.data:", err.response?.data);
+    // console.error("[getDatasourceData] axios.post falló:", err.message);
+    // console.error("[getDatasourceData] err.response?.status:", err.response?.status);
+    // console.error("[getDatasourceData] err.response?.data:", err.response?.data);
     throw err;
   }
 
-  console.log("[getDatasourceData] status:", response.status);
+  // console.log("[getDatasourceData] status:", response.status);
 
   return response.data;
 }
