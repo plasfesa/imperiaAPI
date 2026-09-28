@@ -52,16 +52,20 @@ async function insertForecasts(pool, forecasts) {
     const concepto = f.concepto !== undefined ? f.concepto : f.Concepto;
     const FechaFin = f.FechaFin !== undefined ? f.FechaFin : null;
 
+    if (cliente === undefined || cliente === null || String(cliente).trim() === "") {
+      console.warn("[insertForecasts] Previsión sin cliente, se omite: " + JSON.stringify(f));
+      continue;
+    }
+
     if (
       itemCode === undefined ||
-      cliente === undefined ||
       quantity === undefined ||
       dayCode === undefined ||
       Valor === undefined ||
       concepto === undefined
     ) {
       throw new Error(
-        "Cada previsión debe incluir itemCode, cliente, quantity, dayCode, Valor y concepto"
+        "Cada previsión debe incluir itemCode, cliente, quantity, dayCode, Valor y concepto: " + JSON.stringify(f)
       );
     }
 
