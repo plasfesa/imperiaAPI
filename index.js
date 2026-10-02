@@ -203,6 +203,16 @@ app.get("/mordenesCompraAbiertas", async (req, res) => {
   }
 });
 
+// 09 - mclientes
+app.get("/mMatrizCambios", async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query("select idMaquina as idMaquina, idArticulo_origen as CProcesoOrigen, idArticulo_destino as CPD, tiempo_cambio_min as tiempoCambio from vpers_imperia_matriz_tiempo_cambio");
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).send("Error en la consulta: " + err.message);
+  }
+});
 
 // POST - addForecast
 app.post("/addForecast", async (req, res) => {
