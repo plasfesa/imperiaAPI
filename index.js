@@ -641,6 +641,65 @@ app.post("/scp/ofsSCP", async (req, res) => {
     res.status(502).json({ error: "Error al exportar OFs de SCP", detail });
   }
 });
+
+
+
+
+// POST - Job SCP: autentica y exporta las previsiones (datasource) desde SCP
+app.post("/scp/planProduccion", async (req, res) => {
+  // console.log("[/scp/ofsSCP] Petición recibida");
+  try {
+    //console.log("[/scp/ofsSCP] Llamando a authenticateSCP()...");
+    const accessToken = await authenticateSCP();
+    //console.log("[/scp/ofsSCP] authenticateSCP() OK, token length:", accessToken?.length);
+
+    //console.log("[/scp/ofsSCP] Llamando a getDatasourceData()...");
+    const data = await getDatasourceData(accessToken, { idConfiguration: 25, page: 1, size: -1 });
+    //console.log("[/scp/ofsSCP] getDatasourceData() OK");
+    // console.log( data );
+    if (data && (data.Error === true || (data.ErrorCode !== undefined && data.ErrorCode !== 0))) {
+      //console.error("[/scp/ofsSCP] SCP devolvió error:", JSON.stringify(data));
+      if (res.headersSent) return;
+      return res.status(502).json({
+        error: "SCP devolvió un error al exportar los OFs",
+        data,
+      });
+    }
+
+    const ofsscp = extractForecastRecords(data);
+    if (!ofsscp) {
+       //console.error("[/scp/ofsSCP] Respuesta de SCP no reconocida:", JSON.stringify(data));
+       if (res.headersSent) return;
+       return res.status(502).json({
+         error: "SCP no devolvió OFs en un formato reconocido",
+         data,
+       });
+    }
+    console.log("[/scp/ofsSCP] OFs recibidos:", ofsscp.length);
+    console.log("[/scp/ofsSCP] OFs:", ofsscp);
+
+    const pool = await poolPromise;
+
+    if (res.headersSent) {
+      // console.log("[/scp/ofsSCP] headersSent ya era true, no respondo de nuevo");
+      return;
+    }
+    res.json({
+       message: "Plan sincronizado correctamente",
+      count: ofsscp.length,
+    });
+
+    // console.log("[/scp/ofsSCP] Respuesta enviada al cliente");
+  } catch (err) {
+    // console.error("[/scp/ofsSCP] Error en el job de SCP:", err);
+    if (res.headersSent) {
+      // console.log("[/scp/ofsSCP] headersSent ya era true en catch, no respondo de nuevo");
+      return;
+    }
+    const detail = err.response?.data || err.message;
+    res.status(502).json({ error: "Error al exportar OFs de SCP", detail });
+  }
+});
 // ****************[FIN] SCP ******************************
 
 // POST - Inserta OFs en el ERP
